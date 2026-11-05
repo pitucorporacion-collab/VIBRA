@@ -145,15 +145,21 @@ class VibraService : Service() {
         }
         if (!vibrator.hasVibrator()) return
         if (code == 0) { vibrator.cancel(); return }
-        val timings: LongArray
-        val amplitudes: IntArray
+
+        // Cada toque produce UN SOLO pulso. Cambian únicamente la duración
+        // y la intensidad para dar tres sensaciones hápticas distintas.
+        val durationMs: Long
+        val amplitude: Int
         when (code) {
-            1 -> { timings = longArrayOf(0, 450, 250); amplitudes = intArrayOf(0, 150, 0) }
-            2 -> { timings = longArrayOf(0, 120, 100, 120, 700); amplitudes = intArrayOf(0, 180, 0, 255, 0) }
-            3 -> { timings = longArrayOf(0, 100, 100, 100, 100, 100, 650); amplitudes = intArrayOf(0, 255, 0, 255, 0, 255, 0) }
+            1 -> { durationMs = 300; amplitude = 150 } // MEDIUM: medio y suave
+            2 -> { durationMs = 140; amplitude = 255 } // HEART BEAT: corto e intenso
+            3 -> { durationMs = 600; amplitude = 220 } // ZIG ZIG ZIG: largo e intenso
             else -> return
         }
-        vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, 0))
+
+        // Cancelar el pulso anterior permite que un nuevo toque lo reinicie.
+        vibrator.cancel()
+        vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
     }
 
     override fun onDestroy() {
