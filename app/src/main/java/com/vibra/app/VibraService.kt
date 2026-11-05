@@ -31,6 +31,23 @@ class VibraService : Service() {
     private var advertiserCallback: AdvertiseCallback? = null
 
     private val gattCallback = object : BluetoothGattServerCallback() {
+        override fun onConnectionStateChange(
+            device: android.bluetooth.BluetoothDevice,
+            status: Int,
+            newState: Int
+        ) {
+            if (newState == android.bluetooth.BluetoothProfile.STATE_DISCONNECTED) {
+                try {
+                    val vibrator = if (Build.VERSION.SDK_INT >= 31) getSystemService(VibratorManager::class.java).defaultVibrator
+                    else {
+                        @Suppress("DEPRECATION")
+                        getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                    }
+                    vibrator.cancel()
+                } catch (_: Exception) {}
+            }
+        }
+
         override fun onServiceAdded(status: Int, service: BluetoothGattService) {
             if (status == BluetoothGatt.GATT_SUCCESS && service.uuid == serviceUuid) {
                 startAdvertising()
