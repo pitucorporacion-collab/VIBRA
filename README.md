@@ -13,11 +13,11 @@ Aplicación Android para transmitir patrones de vibración entre teléfonos medi
 
 ## Patrones
 
-- MEDIUM: pulso medio repetido.
-- HEART BEAT: doble pulso tipo latido repetido.
-- ZIG ZIG ZIG: tres pulsos rápidos repetidos.
+- MEDIUM: un pulso de intensidad media.
+- HEART BEAT: un pulso corto e intenso.
+- ZIG ZIG ZIG: un pulso más largo e intenso.
 
-El patrón se repite en el receptor hasta recibir otro. El receptor usa un servicio en primer plano para permitir recepción con la pantalla apagada.
+Cada toque envía una única señal y el receptor la reproduce una sola vez. Los tres botones usan distintas configuraciones de duración e intensidad; no hay repetición automática. El receptor usa un servicio en primer plano para permitir recepción con la pantalla apagada.
 
 ## Requisitos
 
