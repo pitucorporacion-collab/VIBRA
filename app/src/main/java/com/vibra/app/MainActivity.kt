@@ -44,7 +44,6 @@ class MainActivity : Activity() {
             add(Manifest.permission.BLUETOOTH_SCAN)
             add(Manifest.permission.BLUETOOTH_CONNECT)
             add(Manifest.permission.BLUETOOTH_ADVERTISE)
-            if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
         }.toTypedArray()
     } else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
 
