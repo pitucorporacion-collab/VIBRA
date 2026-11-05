@@ -23,6 +23,7 @@ jobs:
         with:
           cmdline-tools-version: 12266719
           accept-android-sdk-licenses: true
+          packages: platform-tools
       - name: Install Android 35 SDK
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Set up Gradle
