@@ -31,6 +31,12 @@ class VibraService : Service() {
     private var advertiserCallback: AdvertiseCallback? = null
 
     private val gattCallback = object : BluetoothGattServerCallback() {
+        override fun onServiceAdded(status: Int, service: BluetoothGattService) {
+            if (status == BluetoothGatt.GATT_SUCCESS && service.uuid == serviceUuid) {
+                startAdvertising()
+            }
+        }
+
         override fun onCharacteristicWriteRequest(
             device: android.bluetooth.BluetoothDevice,
             requestId: Int,
@@ -97,7 +103,11 @@ class VibraService : Service() {
         service.addCharacteristic(characteristic)
         gattServer?.addService(service)
 
-        val advertiser = adapter.bluetoothLeAdvertiser ?: return
+    }
+
+    private fun startAdvertising() {
+        val manager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val advertiser = manager.adapter?.bluetoothLeAdvertiser ?: return
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setConnectable(true)
