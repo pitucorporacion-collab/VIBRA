@@ -212,7 +212,7 @@ class MainActivity : Activity() {
                     backgroundTintList = android.content.res.ColorStateList.valueOf(item.second)
                     setOnClickListener { sendPattern(item.third) }
                 }
-                row.addView(button, LinearLayout.LayoutParams(0, 0, 1f).apply {
+                row.addView(button, LinearLayout.LayoutParams(0, -1, 1f).apply {
                     setMargins(dp(7), dp(7), dp(7), dp(7))
                 })
             }
