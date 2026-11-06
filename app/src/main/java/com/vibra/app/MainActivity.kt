@@ -50,6 +50,37 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         checkWifiBeforeOpening()
+        intent?.getIntExtra("vibra_alert_code", -1)?.takeIf { it >= 0 }?.let { showIncomingAlert(it) }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent?.getIntExtra("vibra_alert_code", -1)?.takeIf { it >= 0 }?.let { showIncomingAlert(it) }
+    }
+
+    private fun showIncomingAlert(code: Int) {
+        val label = when (code) {
+            1 -> "MEDIUM"
+            2 -> "HEART ×1"
+            3 -> "HEART ×2"
+            4 -> "HEART ×3"
+            5 -> "HEART ×4"
+            6 -> "ZIG ZIG ZIG"
+            7 -> "ALERTA"
+            else -> "Señal recibida"
+        }
+        window.decorView.post {
+            AlertDialog.Builder(this)
+                .setTitle("VIBRA · $label")
+                .setMessage("Recibiste una señal.")
+                .setCancelable(false)
+                .setPositiveButton("CERRAR") { _, _ ->
+                    getSystemService(android.app.NotificationManager::class.java).cancel(30 + code)
+                    intent?.removeExtra("vibra_alert_code")
+                }
+                .show()
+        }
     }
 
     override fun onResume() {
@@ -86,13 +117,18 @@ class MainActivity : Activity() {
             .show()
     }
 
-    private fun requiredPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 31) {
-        arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_ADVERTISE
-        )
-    } else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+    private fun requiredPermissions(): Array<String> {
+        val permissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= 31) {
+            permissions += Manifest.permission.BLUETOOTH_SCAN
+            permissions += Manifest.permission.BLUETOOTH_CONNECT
+            permissions += Manifest.permission.BLUETOOTH_ADVERTISE
+        } else {
+            permissions += Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        if (Build.VERSION.SDK_INT >= 33) permissions += Manifest.permission.POST_NOTIFICATIONS
+        return permissions.toTypedArray()
+    }
 
     private fun hasPermissions() = requiredPermissions().all {
         checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
