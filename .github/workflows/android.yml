@@ -1,8 +1,8 @@
-name: Build VIBRA APK
+name: Build VIBRA APKs
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/wear-os-watch" ]
   workflow_dispatch:
 
 permissions:
@@ -38,12 +38,19 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
+      - name: Build phone and watch APKs
         run: gradle --no-daemon assembleDebug
 
-      - name: Upload APK
+      - name: Upload phone APK
         uses: actions/upload-artifact@v4
         with:
-          name: VIBRA-debug
+          name: VIBRA-phone-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload Wear OS APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VIBRA-Watch-debug
+          path: watch/build/outputs/apk/debug/watch-debug.apk
           if-no-files-found: error
