@@ -15,6 +15,9 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -49,6 +52,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        registerRelayReceiver()
         checkWifiBeforeOpening()
         intent?.getIntExtra("vibra_alert_code", -1)?.takeIf { it >= 0 }?.let { showIncomingAlert(it) }
     }
@@ -57,6 +61,25 @@ class MainActivity : Activity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intent?.getIntExtra("vibra_alert_code", -1)?.takeIf { it >= 0 }?.let { showIncomingAlert(it) }
+    }
+
+    private val relayReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val code = intent?.getIntExtra("code", -1) ?: return
+            val hops = intent.getIntExtra("hops", 0)
+            val source = intent.getStringExtra("source")
+            if (code >= 1 && hops > 0) sendPattern(code, hops - 1, source)
+        }
+    }
+
+    private fun registerRelayReceiver() {
+        val filter = IntentFilter("com.vibra.app.RELAY_SIGNAL")
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(relayReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(relayReceiver, filter)
+        }
     }
 
     private fun showIncomingAlert(code: Int) {
@@ -363,13 +386,14 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun sendPattern(code: Int) {
-        if (connectedGatts.isEmpty()) {
+    private fun sendPattern(code: Int, hops: Int = 1, excludeAddress: String? = null) {
+        val recipients = connectedGatts.keys.filter { it != excludeAddress }
+        if (recipients.isEmpty()) {
             Toast.makeText(this, "Todavía no hay receptores conectados", Toast.LENGTH_SHORT).show()
             return
         }
-        val payload = byteArrayOf(code.toByte())
-        connectedGatts.keys.toList().forEach { address ->
+        val payload = byteArrayOf(code.toByte(), hops.coerceIn(0, 1).toByte())
+        recipients.forEach { address ->
             val queue = writeQueues.getOrPut(address) { ArrayDeque() }
             queue.addLast(payload)
             connectedGatts[address]?.let { writeNext(it) }
@@ -450,6 +474,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         closeSenderConnections()
+        try { unregisterReceiver(relayReceiver) } catch (_: Exception) {}
         // El servicio receptor permanece activo en segundo plano.
         super.onDestroy()
     }
