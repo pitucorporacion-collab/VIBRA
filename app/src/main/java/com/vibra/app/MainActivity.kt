@@ -143,18 +143,6 @@ class MainActivity : Activity() {
         return layout
     }
 
-    private fun withPermissions { startDualMode() } {
-        val layout = baseScreen("VIBRA", "COMUNICACIÓN SECRETA POR VIBRACIÓN")
-        addButton(layout, "EMISOR", 0xFF2368E8.toInt()) {
-            senderMode = true
-            withPermissions { startSender() }
-        }
-        addButton(layout, "RECEPTOR", 0xFF293241.toInt()) {
-            senderMode = false
-            withPermissions { startReceiver() }
-        }
-    }
-
     private fun startSender() {
         closeSenderConnections()
         val root = LinearLayout(this).apply {
