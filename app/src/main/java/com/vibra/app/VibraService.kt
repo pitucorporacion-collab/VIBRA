@@ -158,7 +158,7 @@ class VibraService : Service() {
                     timings.add(85L); amplitudes.add(0)
                     timings.add(175L); amplitudes.add(210)
                     if (index < beats - 1) {
-                        timings.add(190L); amplitudes.add(0)
+                        timings.add(500L); amplitudes.add(0)
                     }
                 }
                 vibrator.cancel()
