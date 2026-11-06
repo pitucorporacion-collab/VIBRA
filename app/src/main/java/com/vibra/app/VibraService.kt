@@ -3,6 +3,7 @@ package com.vibra.app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
@@ -55,7 +56,16 @@ class VibraService : Service() {
             value: ByteArray
         ) {
             if (characteristic.uuid == patternUuid && offset == 0 && value.isNotEmpty()) {
-                playPattern(value[0].toInt() and 0xff)
+                val code = value[0].toInt() and 0xff
+                val hops = if (value.size > 1) value[1].toInt() and 0xff else 0
+                playPattern(code)
+                showIncomingAlert(code)
+                if (hops > 0) {
+                    sendBroadcast(Intent("com.vibra.app.RELAY_SIGNAL").setPackage(packageName)
+                        .putExtra("code", code)
+                        .putExtra("hops", hops)
+                        .putExtra("source", device.address))
+                }
             }
             if (responseNeeded) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
@@ -158,7 +168,7 @@ class VibraService : Service() {
                     timings.add(85L); amplitudes.add(0)
                     timings.add(175L); amplitudes.add(210)
                     if (index < beats - 1) {
-                        timings.add(190L); amplitudes.add(0)
+                        timings.add(500L); amplitudes.add(0)
                     }
                 }
                 vibrator.cancel()
@@ -175,8 +185,53 @@ class VibraService : Service() {
                 vibrator.cancel()
                 vibrator.vibrate(VibrationEffect.createOneShot(600, 220))
             }
+            7 -> {
+                // Alerta visual acompañada por un pulso breve.
+                vibrator.cancel()
+                vibrator.vibrate(VibrationEffect.createOneShot(180, 180))
+            }
             else -> return
         }
+    }
+
+    private fun showIncomingAlert(code: Int) {
+        val label = when (code) {
+            1 -> "MEDIUM"
+            2 -> "HEART ×1"
+            3 -> "HEART ×2"
+            4 -> "HEART ×3"
+            5 -> "HEART ×4"
+            6 -> "ZIG ZIG ZIG"
+            7 -> "ALERTA"
+            else -> "Señal VIBRA"
+        }
+        val channelId = "vibra_incoming_alerts"
+        val manager = getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(
+                NotificationChannel(channelId, "Alertas VIBRA", NotificationManager.IMPORTANCE_HIGH)
+            )
+        }
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("vibra_alert_code", code)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pending = PendingIntent.getActivity(
+            this, code, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, channelId)
+            else Notification.Builder(this)
+        val notification = builder
+            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setContentTitle("VIBRA · $label")
+            .setContentText("Señal recibida")
+            .setCategory(Notification.CATEGORY_MESSAGE)
+            .setPriority(Notification.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+        manager.notify(30 + code, notification)
     }
 
     override fun onDestroy() {

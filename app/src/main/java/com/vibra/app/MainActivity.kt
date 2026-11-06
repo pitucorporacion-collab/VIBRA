@@ -15,6 +15,9 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -49,14 +52,65 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        registerRelayReceiver()
         checkWifiBeforeOpening()
+        intent?.getIntExtra("vibra_alert_code", -1)?.takeIf { it >= 0 }?.let { showIncomingAlert(it) }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent?.getIntExtra("vibra_alert_code", -1)?.takeIf { it >= 0 }?.let { showIncomingAlert(it) }
+    }
+
+    private val relayReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val code = intent?.getIntExtra("code", -1) ?: return
+            val hops = intent.getIntExtra("hops", 0)
+            val source = intent.getStringExtra("source")
+            if (code >= 1 && hops > 0) sendPattern(code, hops - 1, source)
+        }
+    }
+
+    private fun registerRelayReceiver() {
+        val filter = IntentFilter("com.vibra.app.RELAY_SIGNAL")
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(relayReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(relayReceiver, filter)
+        }
+    }
+
+    private fun showIncomingAlert(code: Int) {
+        val label = when (code) {
+            1 -> "MEDIUM"
+            2 -> "HEART ×1"
+            3 -> "HEART ×2"
+            4 -> "HEART ×3"
+            5 -> "HEART ×4"
+            6 -> "ZIG ZIG ZIG"
+            7 -> "ALERTA"
+            else -> "Señal recibida"
+        }
+        window.decorView.post {
+            AlertDialog.Builder(this)
+                .setTitle("VIBRA · $label")
+                .setMessage("Recibiste una señal.")
+                .setCancelable(false)
+                .setPositiveButton("CERRAR") { _, _ ->
+                    getSystemService(android.app.NotificationManager::class.java).cancel(30 + code)
+                    intent?.removeExtra("vibra_alert_code")
+                }
+                .show()
+        }
     }
 
     override fun onResume() {
         super.onResume()
         if (!wifiGatePassed && isWifiEnabled()) {
             wifiGatePassed = true
-            showRoleSelection()
+            withPermissions { startDualMode() }
         }
     }
 
@@ -72,7 +126,7 @@ class MainActivity : Activity() {
     private fun checkWifiBeforeOpening() {
         if (isWifiEnabled()) {
             wifiGatePassed = true
-            showRoleSelection()
+            withPermissions { startDualMode() }
             return
         }
         AlertDialog.Builder(this)
@@ -86,13 +140,18 @@ class MainActivity : Activity() {
             .show()
     }
 
-    private fun requiredPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 31) {
-        arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_ADVERTISE
-        )
-    } else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+    private fun requiredPermissions(): Array<String> {
+        val permissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= 31) {
+            permissions += Manifest.permission.BLUETOOTH_SCAN
+            permissions += Manifest.permission.BLUETOOTH_CONNECT
+            permissions += Manifest.permission.BLUETOOTH_ADVERTISE
+        } else {
+            permissions += Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        if (Build.VERSION.SDK_INT >= 33) permissions += Manifest.permission.POST_NOTIFICATIONS
+        return permissions.toTypedArray()
+    }
 
     private fun hasPermissions() = requiredPermissions().all {
         checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
@@ -102,10 +161,18 @@ class MainActivity : Activity() {
         if (hasPermissions()) action() else requestPermissions(requiredPermissions(), 41)
     }
 
+    private fun startDualMode() {
+        senderMode = true
+        val intent = Intent(this, VibraService::class.java)
+        receiverIntent = intent
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+        startSender()
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
         if (requestCode == 41 && results.isNotEmpty() && results.all { it == PackageManager.PERMISSION_GRANTED }) {
-            if (senderMode) startSender() else startReceiver()
+            startDualMode()
         } else if (requestCode == 41) {
             Toast.makeText(this, "VIBRA necesita permisos Bluetooth.", Toast.LENGTH_LONG).show()
         }
@@ -133,18 +200,6 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, -2))
         setContentView(layout)
         return layout
-    }
-
-    private fun showRoleSelection() {
-        val layout = baseScreen("VIBRA", "COMUNICACIÓN SECRETA POR VIBRACIÓN")
-        addButton(layout, "EMISOR", 0xFF2368E8.toInt()) {
-            senderMode = true
-            withPermissions { startSender() }
-        }
-        addButton(layout, "RECEPTOR", 0xFF293241.toInt()) {
-            senderMode = false
-            withPermissions { startReceiver() }
-        }
     }
 
     private fun startSender() {
@@ -220,11 +275,7 @@ class MainActivity : Activity() {
         }
         root.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        addButton(root, "← VOLVER", 0xFF293241.toInt()) {
-            stopScanning()
-            closeSenderConnections()
-            showRoleSelection()
-        }
+        addButton(root, "ALERTA", 0xFFB85C38.toInt()) { sendPattern(7) }
         setContentView(root)
         updateConnectionDisplay()
         startScan()
@@ -245,7 +296,7 @@ class MainActivity : Activity() {
         addButton(layout, "← VOLVER", 0xFF293241.toInt()) {
             stopService(intent)
             receiverIntent = null
-            showRoleSelection()
+            withPermissions { startDualMode() }
         }
     }
 
@@ -335,13 +386,14 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun sendPattern(code: Int) {
-        if (connectedGatts.isEmpty()) {
+    private fun sendPattern(code: Int, hops: Int = 1, excludeAddress: String? = null) {
+        val recipients = connectedGatts.keys.filter { it != excludeAddress }
+        if (recipients.isEmpty()) {
             Toast.makeText(this, "Todavía no hay receptores conectados", Toast.LENGTH_SHORT).show()
             return
         }
-        val payload = byteArrayOf(code.toByte())
-        connectedGatts.keys.toList().forEach { address ->
+        val payload = byteArrayOf(code.toByte(), hops.coerceIn(0, 1).toByte())
+        recipients.forEach { address ->
             val queue = writeQueues.getOrPut(address) { ArrayDeque() }
             queue.addLast(payload)
             connectedGatts[address]?.let { writeNext(it) }
@@ -422,7 +474,8 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         closeSenderConnections()
-        receiverIntent?.let { stopService(it) }
+        try { unregisterReceiver(relayReceiver) } catch (_: Exception) {}
+        // El servicio receptor permanece activo en segundo plano.
         super.onDestroy()
     }
 }
