@@ -56,7 +56,7 @@ class MainActivity : Activity() {
         super.onResume()
         if (!wifiGatePassed && isWifiEnabled()) {
             wifiGatePassed = true
-            showRoleSelection()
+            withPermissions { startDualMode() }
         }
     }
 
@@ -72,7 +72,7 @@ class MainActivity : Activity() {
     private fun checkWifiBeforeOpening() {
         if (isWifiEnabled()) {
             wifiGatePassed = true
-            showRoleSelection()
+            withPermissions { startDualMode() }
             return
         }
         AlertDialog.Builder(this)
@@ -102,10 +102,18 @@ class MainActivity : Activity() {
         if (hasPermissions()) action() else requestPermissions(requiredPermissions(), 41)
     }
 
+    private fun startDualMode() {
+        senderMode = true
+        val intent = Intent(this, VibraService::class.java)
+        receiverIntent = intent
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+        startSender()
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
         if (requestCode == 41 && results.isNotEmpty() && results.all { it == PackageManager.PERMISSION_GRANTED }) {
-            if (senderMode) startSender() else startReceiver()
+            startDualMode()
         } else if (requestCode == 41) {
             Toast.makeText(this, "VIBRA necesita permisos Bluetooth.", Toast.LENGTH_LONG).show()
         }
@@ -135,7 +143,7 @@ class MainActivity : Activity() {
         return layout
     }
 
-    private fun showRoleSelection() {
+    private fun withPermissions { startDualMode() } {
         val layout = baseScreen("VIBRA", "COMUNICACIÓN SECRETA POR VIBRACIÓN")
         addButton(layout, "EMISOR", 0xFF2368E8.toInt()) {
             senderMode = true
@@ -220,11 +228,7 @@ class MainActivity : Activity() {
         }
         root.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        addButton(root, "← VOLVER", 0xFF293241.toInt()) {
-            stopScanning()
-            closeSenderConnections()
-            showRoleSelection()
-        }
+        addButton(root, "ALERTA", 0xFFB85C38.toInt()) { sendPattern(7) }
         setContentView(root)
         updateConnectionDisplay()
         startScan()
@@ -245,7 +249,7 @@ class MainActivity : Activity() {
         addButton(layout, "← VOLVER", 0xFF293241.toInt()) {
             stopService(intent)
             receiverIntent = null
-            showRoleSelection()
+            withPermissions { startDualMode() }
         }
     }
 
@@ -422,7 +426,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         closeSenderConnections()
-        receiverIntent?.let { stopService(it) }
+        // El servicio receptor permanece activo en segundo plano.
         super.onDestroy()
     }
 }
