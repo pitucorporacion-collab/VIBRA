@@ -2,7 +2,7 @@ name: Build VIBRA APKs
 
 on:
   push:
-    branches: [ "main", "feature/wear-os-watch" ]
+    branches: [ "main", "feature/wear-os-watch", "fix/stable-500ms-button-size" ]
   workflow_dispatch:
 
 permissions:
