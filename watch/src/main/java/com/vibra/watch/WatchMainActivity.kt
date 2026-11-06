@@ -14,6 +14,9 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -60,6 +63,7 @@ class WatchMainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        registerRelayReceiver()
         withPermissions { startDualMode() }
         intent?.getIntExtra("vibra_alert_code", -1)?.takeIf { it >= 0 }?.let { showIncomingAlert(it) }
     }
@@ -126,6 +130,25 @@ class WatchMainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, 46).apply {
             setMargins(4, 4, 4, 4)
         })
+    }
+
+    private val relayReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val code = intent?.getIntExtra("code", -1) ?: return
+            val hops = intent.getIntExtra("hops", 0)
+            val source = intent.getStringExtra("source")
+            if (code >= 1 && hops > 0) sendPattern(code, hops - 1, source)
+        }
+    }
+
+    private fun registerRelayReceiver() {
+        val filter = IntentFilter("com.vibra.watch.RELAY_SIGNAL")
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(relayReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(relayReceiver, filter)
+        }
     }
 
     private fun showIncomingAlert(code: Int) {
@@ -260,16 +283,16 @@ class WatchMainActivity : Activity() {
         }
     }
 
-    private fun sendPattern(code: Int) {
+    private fun sendPattern(code: Int, hops: Int = 1, excludeAddress: String? = null) {
         val currentGatt = gatt
         val characteristic = patternCharacteristic
-        if (currentGatt == null || characteristic == null) {
+        if (currentGatt == null || characteristic == null || currentGatt.device.address == excludeAddress) {
             Toast.makeText(this, "Esperando conexión…", Toast.LENGTH_SHORT).show()
             return
         }
         try {
             @Suppress("DEPRECATION")
-            characteristic.value = byteArrayOf(code.toByte())
+            characteristic.value = byteArrayOf(code.toByte(), hops.coerceIn(0, 1).toByte())
             @Suppress("DEPRECATION")
             characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             @Suppress("DEPRECATION")
@@ -299,6 +322,7 @@ class WatchMainActivity : Activity() {
     override fun onDestroy() {
         stopScan()
         closeSender()
+        try { unregisterReceiver(relayReceiver) } catch (_: Exception) {}
         super.onDestroy()
     }
 }
