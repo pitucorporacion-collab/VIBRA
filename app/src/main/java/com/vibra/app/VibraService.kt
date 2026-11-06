@@ -57,8 +57,15 @@ class VibraService : Service() {
         ) {
             if (characteristic.uuid == patternUuid && offset == 0 && value.isNotEmpty()) {
                 val code = value[0].toInt() and 0xff
+                val hops = if (value.size > 1) value[1].toInt() and 0xff else 0
                 playPattern(code)
                 showIncomingAlert(code)
+                if (hops > 0) {
+                    sendBroadcast(Intent("com.vibra.app.RELAY_SIGNAL").setPackage(packageName)
+                        .putExtra("code", code)
+                        .putExtra("hops", hops)
+                        .putExtra("source", device.address))
+                }
             }
             if (responseNeeded) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
