@@ -37,21 +37,12 @@ class VibraService : Service() {
             newState: Int
         ) {
             if (newState == android.bluetooth.BluetoothProfile.STATE_DISCONNECTED) {
-                try {
-                    val vibrator = if (Build.VERSION.SDK_INT >= 31) getSystemService(VibratorManager::class.java).defaultVibrator
-                    else {
-                        @Suppress("DEPRECATION")
-                        getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                    }
-                    vibrator.cancel()
-                } catch (_: Exception) {}
+                try { getVibrator().cancel() } catch (_: Exception) {}
             }
         }
 
         override fun onServiceAdded(status: Int, service: BluetoothGattService) {
-            if (status == BluetoothGatt.GATT_SUCCESS && service.uuid == serviceUuid) {
-                startAdvertising()
-            }
+            if (status == BluetoothGatt.GATT_SUCCESS && service.uuid == serviceUuid) startAdvertising()
         }
 
         override fun onCharacteristicWriteRequest(
@@ -119,7 +110,6 @@ class VibraService : Service() {
         )
         service.addCharacteristic(characteristic)
         gattServer?.addService(service)
-
     }
 
     private fun startAdvertising() {
@@ -136,30 +126,57 @@ class VibraService : Service() {
         advertiser.startAdvertising(settings, data, advertiserCallback)
     }
 
-    private fun playPattern(code: Int) {
-        val vibrator: Vibrator = if (Build.VERSION.SDK_INT >= 31) {
+    private fun getVibrator(): Vibrator {
+        return if (Build.VERSION.SDK_INT >= 31) {
             getSystemService(VibratorManager::class.java).defaultVibrator
         } else {
             @Suppress("DEPRECATION")
             getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
+    }
+
+    private fun playPattern(code: Int) {
+        val vibrator = getVibrator()
         if (!vibrator.hasVibrator()) return
         if (code == 0) { vibrator.cancel(); return }
 
-        // Cada toque produce UN SOLO pulso. Cambian únicamente la duración
-        // y la intensidad para dar tres sensaciones hápticas distintas.
-        val durationMs: Long
-        val amplitude: Int
         when (code) {
-            1 -> { durationMs = 300; amplitude = 150 } // MEDIUM: medio y suave
-            2 -> { durationMs = 140; amplitude = 255 } // HEART BEAT: corto e intenso
-            3 -> { durationMs = 600; amplitude = 220 } // ZIG ZIG ZIG: largo e intenso
+            1 -> {
+                // MEDIUM: se conserva el pulso original.
+                vibrator.cancel()
+                vibrator.vibrate(VibrationEffect.createOneShot(300, 150))
+            }
+            in 2..5 -> {
+                // Cada latido tiene dos golpes; HEART x2/x3/x4 repite el latido.
+                val beats = code - 1
+                val timings = ArrayList<Long>()
+                val amplitudes = ArrayList<Int>()
+                timings.add(0L)
+                amplitudes.add(0)
+                repeat(beats) { index ->
+                    timings.add(105L); amplitudes.add(255)
+                    timings.add(85L); amplitudes.add(0)
+                    timings.add(175L); amplitudes.add(210)
+                    if (index < beats - 1) {
+                        timings.add(190L); amplitudes.add(0)
+                    }
+                }
+                vibrator.cancel()
+                vibrator.vibrate(
+                    VibrationEffect.createWaveform(
+                        timings.toLongArray(),
+                        amplitudes.toIntArray(),
+                        -1
+                    )
+                )
+            }
+            6 -> {
+                // ZIG ZIG ZIG: se conserva el pulso original.
+                vibrator.cancel()
+                vibrator.vibrate(VibrationEffect.createOneShot(600, 220))
+            }
             else -> return
         }
-
-        // Cancelar el pulso anterior permite que un nuevo toque lo reinicie.
-        vibrator.cancel()
-        vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
     }
 
     override fun onDestroy() {
@@ -170,14 +187,7 @@ class VibraService : Service() {
             }
         } catch (_: Exception) {}
         gattServer?.close()
-        try {
-            val vibrator = if (Build.VERSION.SDK_INT >= 31) getSystemService(VibratorManager::class.java).defaultVibrator
-            else {
-                @Suppress("DEPRECATION")
-                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            }
-            vibrator.cancel()
-        } catch (_: Exception) {}
+        try { getVibrator().cancel() } catch (_: Exception) {}
         super.onDestroy()
     }
 
