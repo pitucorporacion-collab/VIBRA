@@ -151,7 +151,7 @@ class MainActivity : Activity() {
         closeSenderConnections()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(22), dp(16), dp(14))
+            setPadding(dp(16), dp(22), dp(16), dp(30))
             setBackgroundColor(0xFF10131A.toInt())
         }
         root.addView(TextView(this).apply {
@@ -213,7 +213,7 @@ class MainActivity : Activity() {
                     setOnClickListener { sendPattern(item.third) }
                 }
                 row.addView(button, LinearLayout.LayoutParams(0, -1, 1f).apply {
-                    setMargins(dp(7), dp(7), dp(7), dp(7))
+                    setMargins(dp(9), dp(9), dp(9), dp(9))
                 })
             }
             grid.addView(row, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -410,11 +410,11 @@ class MainActivity : Activity() {
             isAllCaps = false
             setTextColor(0xFFFFFFFF.toInt())
             backgroundTintList = android.content.res.ColorStateList.valueOf(color)
-            setPadding(dp(12), dp(16), dp(12), dp(16))
+            setPadding(dp(12), dp(14), dp(12), dp(14))
             setOnClickListener { action() }
         }
         parent.addView(button, LinearLayout.LayoutParams(-1, -2).apply {
-            setMargins(0, dp(7), 0, dp(7))
+            setMargins(0, dp(6), 0, dp(6))
         })
     }
 
