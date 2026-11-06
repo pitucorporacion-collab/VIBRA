@@ -80,7 +80,7 @@ class WatchMainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(18, 24, 18, 18)
+            setPadding(18, 24, 18, 30)
             setBackgroundColor(0xFF10131A.toInt())
         }
         root.addView(TextView(this).apply {
@@ -108,8 +108,8 @@ class WatchMainActivity : Activity() {
             setTextColor(0xFFFFFFFF.toInt())
             backgroundTintList = android.content.res.ColorStateList.valueOf(color)
             setOnClickListener { action() }
-        }, LinearLayout.LayoutParams(-1, 46).apply {
-            setMargins(4, 4, 4, 4)
+        }, LinearLayout.LayoutParams(-1, 43).apply {
+            setMargins(3, 3, 3, 3)
         })
     }
 
