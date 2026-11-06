@@ -3,6 +3,7 @@ package com.vibra.watch
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
@@ -45,7 +46,9 @@ class VibraWatchService : Service() {
             value: ByteArray
         ) {
             if (characteristic.uuid == patternUuid && offset == 0 && value.isNotEmpty()) {
-                playPattern(value[0].toInt() and 0xff)
+                val code = value[0].toInt() and 0xff
+                playPattern(code)
+                showIncomingAlert(code)
             }
             if (responseNeeded) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
@@ -164,7 +167,7 @@ class VibraWatchService : Service() {
                     timings.add(85L); amplitudes.add(0)
                     timings.add(175L); amplitudes.add(210)
                     if (index < beats - 1) {
-                        timings.add(190L); amplitudes.add(0)
+                        timings.add(500L); amplitudes.add(0)
                     }
                 }
                 vibrator.cancel()
@@ -180,7 +183,52 @@ class VibraWatchService : Service() {
                 vibrator.cancel()
                 vibrator.vibrate(VibrationEffect.createOneShot(600, 220))
             }
+            7 -> {
+                vibrator.cancel()
+                vibrator.vibrate(VibrationEffect.createOneShot(180, 180))
+            }
         }
+    }
+
+    private fun showIncomingAlert(code: Int) {
+        val label = when (code) {
+            1 -> "MEDIUM"
+            2 -> "HEART ×1"
+            3 -> "HEART ×2"
+            4 -> "HEART ×3"
+            5 -> "HEART ×4"
+            6 -> "ZIG ZIG ZIG"
+            7 -> "ALERTA"
+            else -> "Señal VIBRA"
+        }
+        val channelId = "vibra_watch_alerts"
+        val manager = getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(
+                NotificationChannel(channelId, "Alertas VIBRA", NotificationManager.IMPORTANCE_HIGH)
+            )
+        }
+        val intent = Intent(this, WatchMainActivity::class.java).apply {
+            putExtra("vibra_alert_code", code)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pending = PendingIntent.getActivity(
+            this, code, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, channelId)
+            else Notification.Builder(this)
+        val notification = builder
+            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setContentTitle("VIBRA · $label")
+            .setContentText("Tocá para ver y cerrar la señal")
+            .setCategory(Notification.CATEGORY_ALARM)
+            .setPriority(Notification.PRIORITY_MAX)
+            .setOngoing(true)
+            .setContentIntent(pending)
+            .setFullScreenIntent(pending, true)
+            .build()
+        manager.notify(30 + code, notification)
     }
 
     override fun onDestroy() {
