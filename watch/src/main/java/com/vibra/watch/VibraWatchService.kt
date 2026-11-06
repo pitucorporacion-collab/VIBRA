@@ -31,6 +31,10 @@ class VibraWatchService : Service() {
     private var advertiserCallback: AdvertiseCallback? = null
 
     private val gattCallback = object : BluetoothGattServerCallback() {
+        override fun onServiceAdded(status: Int, service: BluetoothGattService) {
+            if (status == BluetoothGatt.GATT_SUCCESS && service.uuid == serviceUuid) startAdvertising()
+        }
+
         override fun onCharacteristicWriteRequest(
             device: android.bluetooth.BluetoothDevice,
             requestId: Int,
