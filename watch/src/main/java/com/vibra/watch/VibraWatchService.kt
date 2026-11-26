@@ -66,13 +66,12 @@ class VibraWatchService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(
-                NotificationChannel(channelId, "VIBRA Watch", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(channelId, "VIBRA", NotificationManager.IMPORTANCE_MIN)
             )
         }
         val notification = if (Build.VERSION.SDK_INT >= 26) {
             Notification.Builder(this, channelId)
-                .setContentTitle("VIBRA Watch está activo")
-                .setContentText("Listo para recibir señales")
+                .setContentTitle("VIBRA")
                 .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
                 .setOngoing(true)
                 .build()
@@ -153,7 +152,7 @@ class VibraWatchService : Service() {
                 vibrator.cancel()
                 vibrator.vibrate(VibrationEffect.createOneShot(300, 150))
             }
-            in 2..5 -> {
+            in 2..6 -> {
                 val beats = code - 1
                 val timings = ArrayList<Long>()
                 val amplitudes = ArrayList<Int>()
@@ -176,7 +175,7 @@ class VibraWatchService : Service() {
                     )
                 )
             }
-            6 -> {
+            7 -> {
                 vibrator.cancel()
                 vibrator.vibrate(VibrationEffect.createOneShot(600, 220))
             }
