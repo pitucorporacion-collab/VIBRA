@@ -62,7 +62,7 @@ class VibraWatchService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     private fun startAsForeground() {
-        val channelId = "vibra_watch_receiver"
+        val channelId = "vibra_watch_receiver_quiet"
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(
@@ -72,14 +72,15 @@ class VibraWatchService : Service() {
         val notification = if (Build.VERSION.SDK_INT >= 26) {
             Notification.Builder(this, channelId)
                 .setContentTitle("VIBRA")
+                .setVisibility(Notification.VISIBILITY_SECRET).setShowWhen(false)
                 .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
                 .setOngoing(true)
                 .build()
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-                .setContentTitle("VIBRA Watch está activo")
-                .setContentText("Listo para recibir señales")
+                .setContentTitle("VIBRA")
+                .setVisibility(Notification.VISIBILITY_SECRET).setShowWhen(false)
                 .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
                 .setOngoing(true)
                 .build()
