@@ -26,7 +26,6 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import java.util.ArrayDeque
 import java.util.UUID
 
@@ -107,7 +106,6 @@ class MainActivity : Activity() {
         if (requestCode == 41 && results.isNotEmpty() && results.all { it == PackageManager.PERMISSION_GRANTED }) {
             if (senderMode) startSender() else startReceiver()
         } else if (requestCode == 41) {
-            Toast.makeText(this, "VIBRA necesita permisos Bluetooth.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -193,20 +191,27 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
         val buttons = listOf(
-            Triple("MEDIUM", 0xFF2368E8.toInt(), 1),
-            Triple("HEART ×1", 0xFFB8325A.toInt(), 2),
-            Triple("HEART ×2", 0xFFB8325A.toInt(), 3),
-            Triple("HEART ×3", 0xFFB8325A.toInt(), 4),
-            Triple("HEART ×4", 0xFFB8325A.toInt(), 5),
-            Triple("ZIG ZIG ZIG", 0xFF6D4BC3.toInt(), 6)
+            Triple("V\nrespuesta A", 0xFF239B56.toInt(), 2),
+            Triple("F\nrespuesta B", 0xFFD93636.toInt(), 3),
+            Triple("HEART ×3\nrespuesta C", 0xFFB8325A.toInt(), 4),
+            Triple("HEART ×4\nrespuesta D", 0xFFB8325A.toInt(), 5),
+            Triple("HEART ×5\nrespuesta E", 0xFFB8325A.toInt(), 6),
+            Triple("ALARMA", 0xFFE0B323.toInt(), 7)
         )
         for (rowIndex in 0..2) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             for (column in 0..1) {
                 val item = buttons[rowIndex * 2 + column]
                 val button = Button(this).apply {
-                    text = item.first
-                    textSize = 16f
+                    val label = android.text.SpannableString(item.first)
+                    val firstLineEnd = item.first.indexOf('\n').let { if (it < 0) item.first.length else it }
+                    if (firstLineEnd == 1) {
+                        label.setSpan(android.text.style.RelativeSizeSpan(2.2f), 0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        label.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                    text = label
+                    textSize = 14f
+                    gravity = Gravity.CENTER
                     isAllCaps = false
                     setTextColor(0xFFFFFFFF.toInt())
                     backgroundTintList = android.content.res.ColorStateList.valueOf(item.second)
@@ -337,7 +342,6 @@ class MainActivity : Activity() {
 
     private fun sendPattern(code: Int) {
         if (connectedGatts.isEmpty()) {
-            Toast.makeText(this, "Todavía no hay receptores conectados", Toast.LENGTH_SHORT).show()
             return
         }
         val payload = byteArrayOf(code.toByte())
