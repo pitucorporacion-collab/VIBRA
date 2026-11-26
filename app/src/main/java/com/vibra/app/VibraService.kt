@@ -76,13 +76,12 @@ class VibraService : Service() {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(
-                NotificationChannel(channelId, "VIBRA receptor", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(channelId, "VIBRA", NotificationManager.IMPORTANCE_MIN)
             )
         }
         val notification: Notification = if (Build.VERSION.SDK_INT >= 26) {
             Notification.Builder(this, channelId)
-                .setContentTitle("VIBRA está activo")
-                .setContentText("Este teléfono está listo para recibir vibraciones")
+                .setContentTitle("VIBRA")
                 .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
                 .setOngoing(true).build()
         } else {
@@ -146,7 +145,7 @@ class VibraService : Service() {
                 vibrator.cancel()
                 vibrator.vibrate(VibrationEffect.createOneShot(300, 150))
             }
-            in 2..5 -> {
+            in 2..6 -> {
                 // Cada latido tiene dos golpes; HEART x2/x3/x4 repite el latido.
                 val beats = code - 1
                 val timings = ArrayList<Long>()
@@ -170,8 +169,8 @@ class VibraService : Service() {
                     )
                 )
             }
-            6 -> {
-                // ZIG ZIG ZIG: se conserva el pulso original.
+            7 -> {
+                // ALARMA: conserva el patrón de alerta original.
                 vibrator.cancel()
                 vibrator.vibrate(VibrationEffect.createOneShot(600, 220))
             }
