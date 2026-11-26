@@ -22,7 +22,6 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import java.util.UUID
 
 class WatchMainActivity : Activity() {
@@ -45,7 +44,6 @@ class WatchMainActivity : Activity() {
         } else {
             permissions += Manifest.permission.ACCESS_FINE_LOCATION
         }
-        if (Build.VERSION.SDK_INT >= 33) permissions += Manifest.permission.POST_NOTIFICATIONS
         return permissions.toTypedArray()
     }
 
@@ -72,7 +70,7 @@ class WatchMainActivity : Activity() {
             grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
             if (senderMode) showSender() else startReceiver()
         } else if (requestCode == 71) {
-            Toast.makeText(this, "VIBRA necesita permisos Bluetooth y notificaciones.", Toast.LENGTH_LONG).show()
+            // No se muestran avisos emergentes.
         }
     }
 
@@ -153,18 +151,35 @@ class WatchMainActivity : Activity() {
             setPadding(0, 4, 0, 8)
         }
         root.addView(statusView)
-        addButton(root, "MEDIUM", 0xFF2368E8.toInt()) { sendPattern(1) }
-        addButton(root, "HEART ×1", 0xFFB8325A.toInt()) { sendPattern(2) }
-        addButton(root, "HEART ×2", 0xFFB8325A.toInt()) { sendPattern(3) }
-        addButton(root, "HEART ×3", 0xFFB8325A.toInt()) { sendPattern(4) }
-        addButton(root, "HEART ×4", 0xFFB8325A.toInt()) { sendPattern(5) }
-        addButton(root, "ZIG ZIG ZIG", 0xFF6D4BC3.toInt()) { sendPattern(6) }
+        addSignalButton(root, "V\nrespuesta A", 0xFF239B56.toInt(), 2)
+        addSignalButton(root, "F\nrespuesta B", 0xFFD93636.toInt(), 3)
+        addSignalButton(root, "HEART ×3\nrespuesta C", 0xFFB8325A.toInt(), 4)
+        addSignalButton(root, "HEART ×4\nrespuesta D", 0xFFB8325A.toInt(), 5)
+        addSignalButton(root, "HEART ×5\nrespuesta E", 0xFFB8325A.toInt(), 6)
+        addSignalButton(root, "ALARMA", 0xFFE0B323.toInt(), 7)
         addButton(root, "VOLVER", 0xFF293241.toInt()) {
             stopScan()
             closeSender()
             showHome()
         }
         startScan()
+    }
+
+    private fun addSignalButton(root: LinearLayout, labelText: String, color: Int, code: Int) {
+        root.addView(Button(this).apply {
+            val label = android.text.SpannableString(labelText)
+            if (labelText.startsWith("V") || labelText.startsWith("F")) {
+                label.setSpan(android.text.style.RelativeSizeSpan(1.8f), 0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                label.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            text = label
+            isAllCaps = false
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFFFFF.toInt())
+            backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+            setOnClickListener { sendPattern(code) }
+        }, LinearLayout.LayoutParams(-1, 43).apply { setMargins(3, 3, 3, 3) })
     }
 
     private fun startScan() {
@@ -241,7 +256,6 @@ class WatchMainActivity : Activity() {
         val currentGatt = gatt
         val characteristic = patternCharacteristic
         if (currentGatt == null || characteristic == null) {
-            Toast.makeText(this, "Esperando conexión…", Toast.LENGTH_SHORT).show()
             return
         }
         try {
@@ -251,9 +265,9 @@ class WatchMainActivity : Activity() {
             characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             @Suppress("DEPRECATION")
             val accepted = currentGatt.writeCharacteristic(characteristic)
-            if (!accepted) Toast.makeText(this, "No se pudo enviar", Toast.LENGTH_SHORT).show()
+            // Sin aviso emergente al enviar.
         } catch (_: SecurityException) {
-            Toast.makeText(this, "Permiso Bluetooth no disponible", Toast.LENGTH_SHORT).show()
+            // Sin aviso emergente.
         }
     }
 
